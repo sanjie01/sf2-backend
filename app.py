@@ -51,6 +51,14 @@ def generate_sf2():
         
         print(f"Template loaded: {ws.title}")
         
+        # Store merged cells to restore later
+        merged_cells = list(ws.merged_cells.ranges)
+        print(f"Found {len(merged_cells)} merged cell ranges")
+        
+        # Unmerge all cells temporarily
+        for merged_range in merged_cells:
+            ws.unmerge_cells(str(merged_range))
+        
         # Step 1: Write month/year to O6
         ws['O6'] = f"{month} {year}"
         print(f"✅ Written month/year to O6: {month} {year}")
@@ -162,7 +170,14 @@ def generate_sf2():
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
         
-        # Step 7: Save to memory
+        # Step 7: Re-merge cells
+        for merged_range in merged_cells:
+            try:
+                ws.merge_cells(str(merged_range))
+            except Exception as e:
+                print(f"Warning: Could not re-merge {merged_range}: {e}")
+        
+        # Step 8: Save to memory
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
