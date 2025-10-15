@@ -55,25 +55,11 @@ def generate_sf2():
         merged_cells = list(ws.merged_cells.ranges)
         print(f"Found {len(merged_cells)} merged cell ranges")
         
-        # Unmerge cells in the data area (rows 10-60) to allow writing
-        # Keep header rows 1-9 merged to preserve layout and images
-        for merged_range in merged_cells:
-            range_str = str(merged_range)
-            try:
-                # Extract row numbers from range like "A1:B2"
-                start_cell = range_str.split(':')[0]
-                end_cell = range_str.split(':')[1]
-                
-                # Extract row numbers (remove letters)
-                start_row = int(''.join(filter(str.isdigit, start_cell)))
-                end_row = int(''.join(filter(str.isdigit, end_cell)))
-                
-                # Unmerge if ANY part of the range is in rows 10-60 (data area)
-                if (start_row >= 10 and start_row <= 60) or (end_row >= 10 and end_row <= 60):
-                    ws.unmerge_cells(range_str)
-                    print(f"Unmerged: {range_str}")
-            except Exception as e:
-                print(f"Warning: Could not parse merged range {range_str}: {e}")
+        # UNMERGE ALL CELLS temporarily (simplest approach)
+        for merged_range in list(ws.merged_cells.ranges):
+            ws.unmerge_cells(str(merged_range))
+        
+        print(f"✅ All cells unmerged")
         
         # Step 1: Write month/year to O6
         ws['O6'] = f"{month} {year}"
@@ -186,24 +172,15 @@ def generate_sf2():
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
         
-        # Step 7: Re-merge cells in the data area
+        # Step 7: Re-merge ALL cells to restore template formatting
+        print(f"Re-merging {len(merged_cells)} cell ranges...")
         for merged_range in merged_cells:
-            range_str = str(merged_range)
             try:
-                # Extract row numbers from range like "A1:B2"
-                start_cell = range_str.split(':')[0]
-                end_cell = range_str.split(':')[1]
-                
-                # Extract row numbers (remove letters)
-                start_row = int(''.join(filter(str.isdigit, start_cell)))
-                end_row = int(''.join(filter(str.isdigit, end_cell)))
-                
-                # Re-merge if it was in the data area (rows 10-60)
-                if (start_row >= 10 and start_row <= 60) or (end_row >= 10 and end_row <= 60):
-                    ws.merge_cells(range_str)
-                    print(f"Re-merged: {range_str}")
+                ws.merge_cells(str(merged_range))
             except Exception as e:
-                print(f"Warning: Could not re-merge {range_str}: {e}")
+                print(f"Warning: Could not re-merge {merged_range}: {e}")
+        
+        print(f"✅ Cells re-merged")
         
         # Step 8: Save to memory
         output = io.BytesIO()
