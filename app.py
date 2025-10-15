@@ -58,12 +58,20 @@ def generate_sf2():
         # Unmerge all cells temporarily (except header rows to preserve images)
         for merged_range in merged_cells:
             range_str = str(merged_range)
-            # Only unmerge data rows (rows 14+), skip header rows
-            if int(range_str.split(':')[0][1:]) >= 14 or int(range_str.split(':')[1][1:]) >= 14:
-                try:
+            try:
+                # Extract row numbers from range like "A1:B2"
+                start_cell = range_str.split(':')[0]
+                end_cell = range_str.split(':')[1]
+                
+                # Extract row numbers (remove letters)
+                start_row = int(''.join(filter(str.isdigit, start_cell)))
+                end_row = int(''.join(filter(str.isdigit, end_cell)))
+                
+                # Only unmerge data rows (rows 14+), skip header rows to preserve layout
+                if start_row >= 14 or end_row >= 14:
                     ws.unmerge_cells(range_str)
-                except:
-                    pass
+            except Exception as e:
+                print(f"Warning: Could not parse merged range {range_str}: {e}")
         
         # Step 1: Write month/year to O6
         ws['O6'] = f"{month} {year}"
@@ -179,12 +187,20 @@ def generate_sf2():
         # Step 7: Re-merge cells (only data rows that were unmerged)
         for merged_range in merged_cells:
             range_str = str(merged_range)
-            # Only re-merge if we unmerged it
-            if int(range_str.split(':')[0][1:]) >= 14 or int(range_str.split(':')[1][1:]) >= 14:
-                try:
+            try:
+                # Extract row numbers from range like "A1:B2"
+                start_cell = range_str.split(':')[0]
+                end_cell = range_str.split(':')[1]
+                
+                # Extract row numbers (remove letters)
+                start_row = int(''.join(filter(str.isdigit, start_cell)))
+                end_row = int(''.join(filter(str.isdigit, end_cell)))
+                
+                # Only re-merge if we unmerged it (rows 14+)
+                if start_row >= 14 or end_row >= 14:
                     ws.merge_cells(range_str)
-                except Exception as e:
-                    print(f"Warning: Could not re-merge {range_str}: {e}")
+            except Exception as e:
+                print(f"Warning: Could not re-merge {range_str}: {e}")
         
         # Step 8: Save to memory
         output = io.BytesIO()
