@@ -55,7 +55,8 @@ def generate_sf2():
         merged_cells = list(ws.merged_cells.ranges)
         print(f"Found {len(merged_cells)} merged cell ranges")
         
-        # Unmerge all cells temporarily (except header rows to preserve images)
+        # Unmerge cells in the data area (rows 10-60) to allow writing
+        # Keep header rows 1-9 merged to preserve layout and images
         for merged_range in merged_cells:
             range_str = str(merged_range)
             try:
@@ -67,9 +68,10 @@ def generate_sf2():
                 start_row = int(''.join(filter(str.isdigit, start_cell)))
                 end_row = int(''.join(filter(str.isdigit, end_cell)))
                 
-                # Only unmerge data rows (rows 14+), skip header rows to preserve layout
-                if start_row >= 14 or end_row >= 14:
+                # Unmerge if ANY part of the range is in rows 10-60 (data area)
+                if (start_row >= 10 and start_row <= 60) or (end_row >= 10 and end_row <= 60):
                     ws.unmerge_cells(range_str)
+                    print(f"Unmerged: {range_str}")
             except Exception as e:
                 print(f"Warning: Could not parse merged range {range_str}: {e}")
         
@@ -184,7 +186,7 @@ def generate_sf2():
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
         
-        # Step 7: Re-merge cells (only data rows that were unmerged)
+        # Step 7: Re-merge cells in the data area
         for merged_range in merged_cells:
             range_str = str(merged_range)
             try:
@@ -196,9 +198,10 @@ def generate_sf2():
                 start_row = int(''.join(filter(str.isdigit, start_cell)))
                 end_row = int(''.join(filter(str.isdigit, end_cell)))
                 
-                # Only re-merge if we unmerged it (rows 14+)
-                if start_row >= 14 or end_row >= 14:
+                # Re-merge if it was in the data area (rows 10-60)
+                if (start_row >= 10 and start_row <= 60) or (end_row >= 10 and end_row <= 60):
                     ws.merge_cells(range_str)
+                    print(f"Re-merged: {range_str}")
             except Exception as e:
                 print(f"Warning: Could not re-merge {range_str}: {e}")
         
