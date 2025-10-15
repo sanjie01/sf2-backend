@@ -55,9 +55,15 @@ def generate_sf2():
         merged_cells = list(ws.merged_cells.ranges)
         print(f"Found {len(merged_cells)} merged cell ranges")
         
-        # Unmerge all cells temporarily
+        # Unmerge all cells temporarily (except header rows to preserve images)
         for merged_range in merged_cells:
-            ws.unmerge_cells(str(merged_range))
+            range_str = str(merged_range)
+            # Only unmerge data rows (rows 14+), skip header rows
+            if int(range_str.split(':')[0][1:]) >= 14 or int(range_str.split(':')[1][1:]) >= 14:
+                try:
+                    ws.unmerge_cells(range_str)
+                except:
+                    pass
         
         # Step 1: Write month/year to O6
         ws['O6'] = f"{month} {year}"
@@ -120,13 +126,13 @@ def generate_sf2():
                         status = att.get('status', '')
                         if status == 'Absent':
                             cell.value = 'x'
-                            cell.font = Font(bold=True, color='FF0000')  # Red
+                            cell.font = Font(bold=True, color='FF0000')  # Red bold x
                         elif status == 'Late':
                             cell.value = 'T'
-                            cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')  # Yellow
+                            apply_half_shading(cell, 'darkUp')  # Upper half shaded
                         elif status == 'Cutting Class':
                             cell.value = 'T'
-                            cell.fill = PatternFill(start_color='FFA500', end_color='FFA500', fill_type='solid')  # Orange
+                            apply_half_shading(cell, 'darkDown')  # Lower half shaded
                         # Present = leave blank
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
@@ -159,23 +165,26 @@ def generate_sf2():
                         status = att.get('status', '')
                         if status == 'Absent':
                             cell.value = 'x'
-                            cell.font = Font(bold=True, color='FF0000')  # Red
+                            cell.font = Font(bold=True, color='FF0000')  # Red bold x
                         elif status == 'Late':
                             cell.value = 'T'
-                            cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')  # Yellow
+                            apply_half_shading(cell, 'darkUp')  # Upper half shaded
                         elif status == 'Cutting Class':
                             cell.value = 'T'
-                            cell.fill = PatternFill(start_color='FFA500', end_color='FFA500', fill_type='solid')  # Orange
+                            apply_half_shading(cell, 'darkDown')  # Lower half shaded
                         # Present = leave blank
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
         
-        # Step 7: Re-merge cells
+        # Step 7: Re-merge cells (only data rows that were unmerged)
         for merged_range in merged_cells:
-            try:
-                ws.merge_cells(str(merged_range))
-            except Exception as e:
-                print(f"Warning: Could not re-merge {merged_range}: {e}")
+            range_str = str(merged_range)
+            # Only re-merge if we unmerged it
+            if int(range_str.split(':')[0][1:]) >= 14 or int(range_str.split(':')[1][1:]) >= 14:
+                try:
+                    ws.merge_cells(range_str)
+                except Exception as e:
+                    print(f"Warning: Could not re-merge {range_str}: {e}")
         
         # Step 8: Save to memory
         output = io.BytesIO()
