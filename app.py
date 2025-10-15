@@ -122,13 +122,15 @@ def generate_sf2():
                         status = att.get('status', '')
                         if status == 'Absent':
                             cell.value = 'x'
-                            cell.font = Font(bold=True, color='FF0000')  # Red bold x
+                            cell.font = Font(bold=True, color='000000')  # Black bold x
                         elif status == 'Late':
-                            cell.value = 'T'
-                            apply_half_shading(cell, 'darkUp')  # Upper half shaded
+                            # Yellow fill, no text
+                            cell.value = ''
+                            cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
                         elif status == 'Cutting Class':
-                            cell.value = 'T'
-                            apply_half_shading(cell, 'darkDown')  # Lower half shaded
+                            # Red fill, no text
+                            cell.value = ''
+                            cell.fill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
                         # Present = leave blank
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
@@ -161,13 +163,15 @@ def generate_sf2():
                         status = att.get('status', '')
                         if status == 'Absent':
                             cell.value = 'x'
-                            cell.font = Font(bold=True, color='FF0000')  # Red bold x
+                            cell.font = Font(bold=True, color='000000')  # Black bold x
                         elif status == 'Late':
-                            cell.value = 'T'
-                            apply_half_shading(cell, 'darkUp')  # Upper half shaded
+                            # Yellow fill, no text
+                            cell.value = ''
+                            cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
                         elif status == 'Cutting Class':
-                            cell.value = 'T'
-                            apply_half_shading(cell, 'darkDown')  # Lower half shaded
+                            # Red fill, no text
+                            cell.value = ''
+                            cell.fill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
                         # Present = leave blank
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
