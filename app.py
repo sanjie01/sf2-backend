@@ -8,7 +8,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Path to your SF2 template (place in same folder as this file)
-TEMPLATE_PATH = 'SF2_template.xlsx'
+TEMPLATE_PATH = 'sf2_template.xlsx'
 
 def get_month_index(month_name):
     """Convert month name to index"""
