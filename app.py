@@ -61,9 +61,9 @@ def generate_sf2():
         
         print(f"✅ All cells unmerged")
         
-        # Step 1: Write month/year to O6
-        ws['O6'] = f"{month} {year}"
-        print(f"✅ Written month/year to O6: {month} {year}")
+        # Step 1: Write month/year to X6 (merged cells X6:AC6)
+        ws['X6'] = f"{month} {year}"
+        print(f"✅ Written month/year to X6: {month} {year}")
         
         # Step 2: Get days in month
         if month_index == 12:
@@ -77,12 +77,26 @@ def generate_sf2():
         
         print(f"Days in month: {days_in_month}")
         
-        # Step 3: Write day numbers to row 10 (row index 9) starting from column D (3)
+        # Step 3: Write day numbers (1-31) to row 11 starting from column D
         for day in range(1, days_in_month + 1):
-            col_index = 3 + (day - 1)  # Start from D (index 3)
-            cell = ws.cell(row=10, column=col_index)
+            col_index = 3 + (day - 1)  # D=3, E=4, F=5, etc.
+            cell = ws.cell(row=11, column=col_index + 1)  # +1 because openpyxl is 1-indexed
             cell.value = day
-        print(f"✅ Written day numbers 1-{days_in_month} to row 10")
+        print(f"✅ Written day numbers 1-{days_in_month} to row 11 (D11-AB11)")
+        
+        # Step 4: Write day names (M-T-W-Th-F-Sa-Su) to row 12 starting from column D
+        # Calculate what day of week each date falls on
+        day_names = ['M', 'T', 'W', 'Th', 'F', 'Sa', 'Su']
+        
+        for day in range(1, days_in_month + 1):
+            current_date = datetime(year, month_index, day)
+            day_of_week = current_date.weekday()  # 0=Monday, 6=Sunday
+            day_name = day_names[day_of_week]
+            
+            col_index = 3 + (day - 1)  # D=3, E=4, F=5, etc.
+            cell = ws.cell(row=12, column=col_index + 1)  # +1 because openpyxl is 1-indexed
+            cell.value = day_name
+        print(f"✅ Written day names (M-T-W-Th-F-Sa-Su) to row 12 (D12-AB12)")
         
         # Step 4: Separate students by gender
         male_students = [s for s in students if s.get('gender', '').upper() == 'MALE']
