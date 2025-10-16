@@ -161,6 +161,68 @@ def generate_sf2():
             ws.cell(row=row, column=30).value = tardy_count   # AD column
             print(f"  Absent: {absent_count}, Tardy: {tardy_count}")
         
+        # Step 8: Calculate daily present count for FEMALES (row 61)
+        # Count how many female students are actually enrolled
+        total_female_students = len(female_students)
+        print(f"Total female students enrolled: {total_female_students}")
+        
+        for day in range(1, days_in_month + 1):
+            col_index = 3 + (day - 1)  # D, E, F, etc.
+            
+            # Count absent and tardy for this day among females
+            absent_tardy_count = 0
+            for idx in range(total_female_students):
+                student_row = female_start_row + idx
+                cell = ws.cell(row=student_row, column=col_index + 1)
+                
+                # Check if cell has 'x' (absent) or has fill (tardy)
+                if cell.value == 'x' or (cell.fill and cell.fill.start_color and cell.fill.start_color.rgb and cell.fill.start_color.rgb != '00000000'):
+                    absent_tardy_count += 1
+            
+            # Present = Total - (Absent + Tardy)
+            present_count = total_female_students - absent_tardy_count
+            ws.cell(row=61, column=col_index + 1).value = present_count
+        
+        print(f"✅ Daily female present counts written to row 61")
+        
+        # Step 9: Calculate daily TOTAL present count (male + female) (row 62)
+        for day in range(1, days_in_month + 1):
+            col_index = 3 + (day - 1)  # D, E, F, etc.
+            
+            # Get male and female present counts for this day
+            male_present = ws.cell(row=35, column=col_index + 1).value or 0
+            female_present = ws.cell(row=61, column=col_index + 1).value or 0
+            
+            # Total present
+            total_present = male_present + female_present
+            ws.cell(row=62, column=col_index + 1).value = total_present
+        
+        print(f"✅ Daily total present counts written to row 62")
+        
+        # Step 7: Calculate daily present count for MALES (row 35)
+        # Count how many male students are actually enrolled (have row numbers)
+        total_male_students = len(male_students)
+        print(f"Total male students enrolled: {total_male_students}")
+        
+        for day in range(1, days_in_month + 1):
+            col_index = 3 + (day - 1)  # D, E, F, etc.
+            
+            # Count absent and tardy for this day among males
+            absent_tardy_count = 0
+            for idx in range(total_male_students):
+                student_row = male_start_row + idx
+                cell = ws.cell(row=student_row, column=col_index + 1)
+                
+                # Check if cell has 'x' (absent) or has fill (tardy)
+                if cell.value == 'x' or (cell.fill and cell.fill.start_color and cell.fill.start_color.rgb and cell.fill.start_color.rgb != '00000000'):
+                    absent_tardy_count += 1
+            
+            # Present = Total - (Absent + Tardy)
+            present_count = total_male_students - absent_tardy_count
+            ws.cell(row=35, column=col_index + 1).value = present_count
+        
+        print(f"✅ Daily male present counts written to row 35")
+        
         # Step 7: Write FEMALE students (rows 36-60)
         female_start_row = 36
         for idx, student in enumerate(female_students[:25]):  # Max 25 female students
