@@ -108,8 +108,11 @@ def generate_sf2():
         
         print(f"Males: {len(male_students)}, Females: {len(female_students)}")
         
-        # Step 6: Write MALE students (rows 14-34)
+        # Define row constants
         male_start_row = 14
+        female_start_row = 36
+        
+        # Step 6: Write MALE students (rows 14-34)
         for idx, student in enumerate(male_students[:21]):  # Max 21 male students
             row = male_start_row + idx
             
@@ -161,7 +164,7 @@ def generate_sf2():
             ws.cell(row=row, column=30).value = tardy_count   # AD column
             print(f"  Absent: {absent_count}, Tardy: {tardy_count}")
         
-        # Step 8: Calculate daily present count for FEMALES (row 61)
+        # Step 9: Calculate daily present count for FEMALES (row 61)
         # Count how many female students are actually enrolled
         total_female_students = len(female_students)
         print(f"Total female students enrolled: {total_female_students}")
@@ -185,7 +188,7 @@ def generate_sf2():
         
         print(f"✅ Daily female present counts written to row 61")
         
-        # Step 9: Calculate daily TOTAL present count (male + female) (row 62)
+        # Step 10: Calculate daily TOTAL present count (male + female) (row 62)
         for day in range(1, days_in_month + 1):
             col_index = 3 + (day - 1)  # D, E, F, etc.
             
@@ -223,8 +226,7 @@ def generate_sf2():
         
         print(f"✅ Daily male present counts written to row 35")
         
-        # Step 7: Write FEMALE students (rows 36-60)
-        female_start_row = 36
+        # Step 8: Write FEMALE students (rows 36-60)
         for idx, student in enumerate(female_students[:25]):  # Max 25 female students
             row = female_start_row + idx
             
