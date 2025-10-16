@@ -108,7 +108,7 @@ def generate_sf2():
         
         print(f"Males: {len(male_students)}, Females: {len(female_students)}")
         
-        # Step 5: Write MALE students (rows 14-34)
+        # Step 6: Write MALE students (rows 14-34)
         male_start_row = 14
         for idx, student in enumerate(male_students[:21]):  # Max 21 male students
             row = male_start_row + idx
@@ -121,6 +121,10 @@ def generate_sf2():
             
             print(f"Male #{idx+1}: {student.get('name')} at row {row}")
             
+            # Initialize counters for this student
+            absent_count = 0
+            tardy_count = 0  # Late + Cutting Class combined
+            
             # Write attendance
             attendance = student.get('attendance', [])
             for att in attendance:
@@ -131,25 +135,33 @@ def generate_sf2():
                     if att_date.month == month_index and att_date.year == year:
                         day = att_date.day
                         col_index = 3 + (day - 1)  # Column D onwards
-                        cell = ws.cell(row=row, column=col_index)
+                        cell = ws.cell(row=row, column=col_index + 1)
                         
                         status = att.get('status', '')
                         if status == 'Absent':
                             cell.value = 'x'
                             cell.font = Font(bold=True, color='000000')  # Black bold x
+                            absent_count += 1
                         elif status == 'Late':
                             # Yellow fill, no text
                             cell.value = ''
                             cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                            tardy_count += 1
                         elif status == 'Cutting Class':
                             # Red fill, no text
                             cell.value = ''
                             cell.fill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
+                            tardy_count += 1
                         # Present = leave blank
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
+            
+            # Write counts to columns AC (29) and AD (30)
+            ws.cell(row=row, column=29).value = absent_count  # AC column
+            ws.cell(row=row, column=30).value = tardy_count   # AD column
+            print(f"  Absent: {absent_count}, Tardy: {tardy_count}")
         
-        # Step 6: Write FEMALE students (rows 36-60)
+        # Step 7: Write FEMALE students (rows 36-60)
         female_start_row = 36
         for idx, student in enumerate(female_students[:25]):  # Max 25 female students
             row = female_start_row + idx
@@ -162,6 +174,10 @@ def generate_sf2():
             
             print(f"Female #{idx+1}: {student.get('name')} at row {row}")
             
+            # Initialize counters for this student
+            absent_count = 0
+            tardy_count = 0  # Late + Cutting Class combined
+            
             # Write attendance
             attendance = student.get('attendance', [])
             for att in attendance:
@@ -172,23 +188,31 @@ def generate_sf2():
                     if att_date.month == month_index and att_date.year == year:
                         day = att_date.day
                         col_index = 3 + (day - 1)  # Column D onwards
-                        cell = ws.cell(row=row, column=col_index)
+                        cell = ws.cell(row=row, column=col_index + 1)
                         
                         status = att.get('status', '')
                         if status == 'Absent':
                             cell.value = 'x'
                             cell.font = Font(bold=True, color='000000')  # Black bold x
+                            absent_count += 1
                         elif status == 'Late':
                             # Yellow fill, no text
                             cell.value = ''
                             cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                            tardy_count += 1
                         elif status == 'Cutting Class':
                             # Red fill, no text
                             cell.value = ''
                             cell.fill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
+                            tardy_count += 1
                         # Present = leave blank
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
+            
+            # Write counts to columns AC (29) and AD (30)
+            ws.cell(row=row, column=29).value = absent_count  # AC column
+            ws.cell(row=row, column=30).value = tardy_count   # AD column
+            print(f"  Absent: {absent_count}, Tardy: {tardy_count}")
         
         # Step 7: Re-merge ALL cells to restore template formatting
         print(f"Re-merging {len(merged_cells)} cell ranges...")
