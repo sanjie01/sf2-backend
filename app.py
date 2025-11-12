@@ -19,13 +19,33 @@ def get_month_index(month_name):
     except ValueError:
         return 0
 
-def column_letter(col_num):
-    """Convert column number to letter (0=A, 1=B, etc)"""
-    return chr(65 + col_num)
+def get_weekdays_in_month(year, month_index):
+    """Get list of weekday dates (Mon-Fri) in the given month"""
+    from datetime import datetime, timedelta
+    
+    # Get first day of month
+    first_day = datetime(year, month_index, 1)
+    
+    # Get last day of month
+    if month_index == 12:
+        last_day = datetime(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        last_day = datetime(year, month_index + 1, 1) - timedelta(days=1)
+    
+    weekdays = []
+    current_date = first_day
+    
+    while current_date <= last_day:
+        # weekday() returns 0-6, where 0=Monday, 4=Friday, 5=Saturday, 6=Sunday
+        if current_date.weekday() < 5:  # Monday to Friday
+            weekdays.append(current_date)
+        current_date += timedelta(days=1)
+    
+    return weekdays
 
 @app.route('/api/generate-sf2', methods=['POST'])
 def generate_sf2():
-    """Generate SF2 report from attendance data"""
+    """Generate SF2 report from attendance data (weekdays only)"""
     try:
         # Get data from request
         data = request.json
@@ -55,50 +75,43 @@ def generate_sf2():
         merged_cells = list(ws.merged_cells.ranges)
         print(f"Found {len(merged_cells)} merged cell ranges")
         
-        # UNMERGE ALL CELLS temporarily (simplest approach)
+        # UNMERGE ALL CELLS temporarily
         for merged_range in list(ws.merged_cells.ranges):
             ws.unmerge_cells(str(merged_range))
         
         print(f"✅ All cells unmerged")
         
-        # Step 1: Write month/year to X6 (merged cells X6:AC6)
+        # Write month/year to X6
         ws['X6'] = f"{month} {year}"
         print(f"✅ Written month/year to X6: {month} {year}")
         
-        # Step 2: Get days in month
-        if month_index == 12:
-            next_month_date = f"{year + 1}-01-01"
-        else:
-            next_month_date = f"{year}-{month_index + 1:02d}-01"
+        # Get weekdays in month
+        weekdays = get_weekdays_in_month(year, month_index)
+        num_weekdays = len(weekdays)
         
-        from datetime import datetime, timedelta
-        last_day = datetime.strptime(next_month_date, "%Y-%m-%d") - timedelta(days=1)
-        days_in_month = last_day.day
+        print(f"📅 Weekdays in month: {num_weekdays}")
         
-        print(f"Days in month: {days_in_month}")
-        
-        # Step 3: Write day numbers (1-31) to row 11 starting from column D
-        for day in range(1, days_in_month + 1):
-            col_index = 3 + (day - 1)  # D=3, E=4, F=5, etc.
-            cell = ws.cell(row=11, column=col_index + 1)  # +1 because openpyxl is 1-indexed
-            cell.value = day
-        print(f"✅ Written day numbers 1-{days_in_month} to row 11 (D11-AB11)")
-        
-        # Step 4: Write day names (M-T-W-Th-F-Sa-Su) to row 12 starting from column D
-        # Calculate what day of week each date falls on
+        # Day names mapping
         day_names = ['M', 'T', 'W', 'Th', 'F', 'Sa', 'Su']
         
-        for day in range(1, days_in_month + 1):
-            current_date = datetime(year, month_index, day)
-            day_of_week = current_date.weekday()  # 0=Monday, 6=Sunday
+        # Write day numbers and day names ONLY for weekdays
+        for idx, weekday_date in enumerate(weekdays):
+            day = weekday_date.day
+            day_of_week = weekday_date.weekday()  # 0=Monday, 4=Friday
             day_name = day_names[day_of_week]
             
-            col_index = 3 + (day - 1)  # D=3, E=4, F=5, etc.
-            cell = ws.cell(row=12, column=col_index + 1)  # +1 because openpyxl is 1-indexed
-            cell.value = day_name
-        print(f"✅ Written day names (M-T-W-Th-F-Sa-Su) to row 12 (D12-AB12)")
+            col_index = 3 + idx  # D=3, E=4, F=5, etc.
+            
+            # Write day number to row 11
+            ws.cell(row=11, column=col_index + 1).value = day
+            
+            # Write day name to row 12
+            ws.cell(row=12, column=col_index + 1).value = day_name
         
-        # Step 4: Separate students by gender
+        print(f"✅ Written {num_weekdays} weekday numbers to row 11")
+        print(f"✅ Written {num_weekdays} weekday names to row 12")
+        
+        # Separate students by gender
         male_students = [s for s in students if s.get('gender', '').upper() == 'MALE']
         female_students = [s for s in students if s.get('gender', '').upper() == 'FEMALE']
         
@@ -112,7 +125,12 @@ def generate_sf2():
         male_start_row = 14
         female_start_row = 36
         
-        # Step 6: Write MALE students (rows 14-34)
+        # Create a mapping of day number to column index (for weekdays only)
+        day_to_col = {}
+        for idx, weekday_date in enumerate(weekdays):
+            day_to_col[weekday_date.day] = 3 + idx
+        
+        # Write MALE students (rows 14-34)
         for idx, student in enumerate(male_students[:21]):  # Max 21 male students
             row = male_start_row + idx
             
@@ -128,92 +146,53 @@ def generate_sf2():
             absent_count = 0
             tardy_count = 0  # Late + Cutting Class combined
             
-            # Write attendance
+            # Write attendance (only for weekdays)
             attendance = student.get('attendance', [])
             for att in attendance:
                 try:
                     att_date = datetime.strptime(att.get('date'), '%Y-%m-%d')
                     
-                    # Check if date is in current month/year
+                    # Check if date is in current month/year AND is a weekday
                     if att_date.month == month_index and att_date.year == year:
                         day = att_date.day
-                        col_index = 3 + (day - 1)  # Column D onwards
-                        cell = ws.cell(row=row, column=col_index + 1)
                         
-                        status = att.get('status', '')
-                        if status == 'Absent':
-                            cell.value = 'x'
-                            cell.font = Font(bold=True, color='000000')  # Black bold x
-                            absent_count += 1
-                        elif status == 'Late':
-                            # Yellow fill, no text
-                            cell.value = ''
-                            cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-                            tardy_count += 1
-                        elif status == 'Cutting Class':
-                            # Red fill, no text
-                            cell.value = ''
-                            cell.fill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
-                            tardy_count += 1
-                        # Present = leave blank
+                        # Only process if this day is in our weekdays list
+                        if day in day_to_col:
+                            col_index = day_to_col[day]
+                            cell = ws.cell(row=row, column=col_index + 1)
+                            
+                            status = att.get('status', '')
+                            if status == 'Absent':
+                                cell.value = 'x'
+                                cell.font = Font(bold=True, color='000000')
+                                absent_count += 1
+                            elif status == 'Late':
+                                cell.value = ''
+                                cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                                tardy_count += 1
+                            elif status == 'Cutting Class':
+                                cell.value = ''
+                                cell.fill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
+                                tardy_count += 1
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
             
             # Write counts to columns AC (29) and AD (30)
-            ws.cell(row=row, column=29).value = absent_count  # AC column
-            ws.cell(row=row, column=30).value = tardy_count   # AD column
+            ws.cell(row=row, column=29).value = absent_count
+            ws.cell(row=row, column=30).value = tardy_count
             print(f"  Absent: {absent_count}, Tardy: {tardy_count}")
         
-        # Step 9: Calculate daily present count for FEMALES (row 61)
-        # Count how many female students are actually enrolled
-        total_female_students = len(female_students)
-        print(f"Total female students enrolled: {total_female_students}")
-        
-        for day in range(1, days_in_month + 1):
-            col_index = 3 + (day - 1)  # D, E, F, etc.
-            
-            # Count absent and tardy for this day among females
-            absent_tardy_count = 0
-            for idx in range(total_female_students):
-                student_row = female_start_row + idx
-                cell = ws.cell(row=student_row, column=col_index + 1)
-                
-                # Check if cell has 'x' (absent) or has fill (tardy)
-                if cell.value == 'x' or (cell.fill and cell.fill.start_color and cell.fill.start_color.rgb and cell.fill.start_color.rgb != '00000000'):
-                    absent_tardy_count += 1
-            
-            # Present = Total - (Absent + Tardy)
-            present_count = total_female_students - absent_tardy_count
-            ws.cell(row=61, column=col_index + 1).value = present_count
-        
-        print(f"✅ Daily female present counts written to row 61")
-        
-        # Step 10: Calculate daily TOTAL present count (male + female) (row 62)
-        for day in range(1, days_in_month + 1):
-            col_index = 3 + (day - 1)  # D, E, F, etc.
-            
-            # Get male and female present counts for this day
-            male_present = ws.cell(row=35, column=col_index + 1).value or 0
-            female_present = ws.cell(row=61, column=col_index + 1).value or 0
-            
-            # Total present
-            total_present = male_present + female_present
-            ws.cell(row=62, column=col_index + 1).value = total_present
-        
-        print(f"✅ Daily total present counts written to row 62")
-        
-        # Step 7: Calculate daily present count for MALES (row 35)
-        # Count how many male students are actually enrolled (have row numbers)
+        # Calculate daily present count for MALES (row 35)
         total_male_students = len(male_students)
         print(f"Total male students enrolled: {total_male_students}")
         
-        for day in range(1, days_in_month + 1):
-            col_index = 3 + (day - 1)  # D, E, F, etc.
+        for idx in range(num_weekdays):
+            col_index = 3 + idx
             
             # Count absent and tardy for this day among males
             absent_tardy_count = 0
-            for idx in range(total_male_students):
-                student_row = male_start_row + idx
+            for student_idx in range(total_male_students):
+                student_row = male_start_row + student_idx
                 cell = ws.cell(row=student_row, column=col_index + 1)
                 
                 # Check if cell has 'x' (absent) or has fill (tardy)
@@ -226,7 +205,7 @@ def generate_sf2():
         
         print(f"✅ Daily male present counts written to row 35")
         
-        # Step 8: Write FEMALE students (rows 36-60)
+        # Write FEMALE students (rows 36-60)
         for idx, student in enumerate(female_students[:25]):  # Max 25 female students
             row = female_start_row + idx
             
@@ -240,45 +219,82 @@ def generate_sf2():
             
             # Initialize counters for this student
             absent_count = 0
-            tardy_count = 0  # Late + Cutting Class combined
+            tardy_count = 0
             
-            # Write attendance
+            # Write attendance (only for weekdays)
             attendance = student.get('attendance', [])
             for att in attendance:
                 try:
                     att_date = datetime.strptime(att.get('date'), '%Y-%m-%d')
                     
-                    # Check if date is in current month/year
+                    # Check if date is in current month/year AND is a weekday
                     if att_date.month == month_index and att_date.year == year:
                         day = att_date.day
-                        col_index = 3 + (day - 1)  # Column D onwards
-                        cell = ws.cell(row=row, column=col_index + 1)
                         
-                        status = att.get('status', '')
-                        if status == 'Absent':
-                            cell.value = 'x'
-                            cell.font = Font(bold=True, color='000000')  # Black bold x
-                            absent_count += 1
-                        elif status == 'Late':
-                            # Yellow fill, no text
-                            cell.value = ''
-                            cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-                            tardy_count += 1
-                        elif status == 'Cutting Class':
-                            # Red fill, no text
-                            cell.value = ''
-                            cell.fill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
-                            tardy_count += 1
-                        # Present = leave blank
+                        # Only process if this day is in our weekdays list
+                        if day in day_to_col:
+                            col_index = day_to_col[day]
+                            cell = ws.cell(row=row, column=col_index + 1)
+                            
+                            status = att.get('status', '')
+                            if status == 'Absent':
+                                cell.value = 'x'
+                                cell.font = Font(bold=True, color='000000')
+                                absent_count += 1
+                            elif status == 'Late':
+                                cell.value = ''
+                                cell.fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                                tardy_count += 1
+                            elif status == 'Cutting Class':
+                                cell.value = ''
+                                cell.fill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
+                                tardy_count += 1
                 except Exception as e:
                     print(f"Error processing attendance: {e}")
             
             # Write counts to columns AC (29) and AD (30)
-            ws.cell(row=row, column=29).value = absent_count  # AC column
-            ws.cell(row=row, column=30).value = tardy_count   # AD column
+            ws.cell(row=row, column=29).value = absent_count
+            ws.cell(row=row, column=30).value = tardy_count
             print(f"  Absent: {absent_count}, Tardy: {tardy_count}")
         
-        # Step 7: Re-merge ALL cells to restore template formatting
+        # Calculate daily present count for FEMALES (row 61)
+        total_female_students = len(female_students)
+        print(f"Total female students enrolled: {total_female_students}")
+        
+        for idx in range(num_weekdays):
+            col_index = 3 + idx
+            
+            # Count absent and tardy for this day among females
+            absent_tardy_count = 0
+            for student_idx in range(total_female_students):
+                student_row = female_start_row + student_idx
+                cell = ws.cell(row=student_row, column=col_index + 1)
+                
+                # Check if cell has 'x' (absent) or has fill (tardy)
+                if cell.value == 'x' or (cell.fill and cell.fill.start_color and cell.fill.start_color.rgb and cell.fill.start_color.rgb != '00000000'):
+                    absent_tardy_count += 1
+            
+            # Present = Total - (Absent + Tardy)
+            present_count = total_female_students - absent_tardy_count
+            ws.cell(row=61, column=col_index + 1).value = present_count
+        
+        print(f"✅ Daily female present counts written to row 61")
+        
+        # Calculate daily TOTAL present count (male + female) (row 62)
+        for idx in range(num_weekdays):
+            col_index = 3 + idx
+            
+            # Get male and female present counts for this day
+            male_present = ws.cell(row=35, column=col_index + 1).value or 0
+            female_present = ws.cell(row=61, column=col_index + 1).value or 0
+            
+            # Total present
+            total_present = male_present + female_present
+            ws.cell(row=62, column=col_index + 1).value = total_present
+        
+        print(f"✅ Daily total present counts written to row 62")
+        
+        # Re-merge ALL cells to restore template formatting
         print(f"Re-merging {len(merged_cells)} cell ranges...")
         for merged_range in merged_cells:
             try:
@@ -288,7 +304,7 @@ def generate_sf2():
         
         print(f"✅ Cells re-merged")
         
-        # Step 8: Save to memory
+        # Save to memory
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
@@ -305,6 +321,8 @@ def generate_sf2():
     
     except Exception as e:
         print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {'error': str(e)}, 500
 
 @app.route('/health', methods=['GET'])
