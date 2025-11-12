@@ -71,6 +71,17 @@ def generate_sf2():
         
         print(f"Template loaded: {ws.title}")
         
+        # Store images to restore later
+        saved_images = []
+        if hasattr(ws, '_images') and ws._images:
+            print(f"Found {len(ws._images)} images in template")
+            for img in ws._images:
+                # Store image data and anchor position
+                saved_images.append({
+                    'image': img,
+                    'anchor': img.anchor
+                })
+        
         # Store merged cells to restore later
         merged_cells = list(ws.merged_cells.ranges)
         print(f"Found {len(merged_cells)} merged cell ranges")
@@ -131,7 +142,7 @@ def generate_sf2():
         # Create a mapping of day number to column index (for weekdays only)
         day_to_col = {}
         for idx, weekday_date in enumerate(weekdays):
-            day_to_col[weekday_date.day] = 3 + idx
+            day_to_col[weekday_date.day] = 4 + idx  # Column D=4, E=5, etc.
         
         # Write MALE students (rows 14-34)
         for idx, student in enumerate(male_students[:21]):  # Max 21 male students
@@ -161,8 +172,8 @@ def generate_sf2():
                         
                         # Only process if this day is in our weekdays list
                         if day in day_to_col:
-                            col_index = day_to_col[day]
-                            cell = ws.cell(row=row, column=col_index + 1)
+                            col_num = day_to_col[day]
+                            cell = ws.cell(row=row, column=col_num)
                             
                             status = att.get('status', '')
                             if status == 'Absent':
@@ -190,13 +201,13 @@ def generate_sf2():
         print(f"Total male students enrolled: {total_male_students}")
         
         for idx in range(num_weekdays):
-            col_index = 3 + idx
+            col_num = 4 + idx  # Column D=4, E=5, etc.
             
             # Count absent and tardy for this day among males
             absent_tardy_count = 0
             for student_idx in range(total_male_students):
                 student_row = male_start_row + student_idx
-                cell = ws.cell(row=student_row, column=col_index + 1)
+                cell = ws.cell(row=student_row, column=col_num)
                 
                 # Check if cell has 'x' (absent) or has fill (tardy)
                 if cell.value == 'x' or (cell.fill and cell.fill.start_color and cell.fill.start_color.rgb and cell.fill.start_color.rgb != '00000000'):
@@ -204,7 +215,8 @@ def generate_sf2():
             
             # Present = Total - (Absent + Tardy)
             present_count = total_male_students - absent_tardy_count
-            ws.cell(row=35, column=col_index + 1).value = present_count
+            ws.cell(row=35, column=col_num).value = present_count
+            print(f"  Day idx {idx}, Col {col_num}: {present_count} present")
         
         print(f"✅ Daily male present counts written to row 35")
         
@@ -236,8 +248,8 @@ def generate_sf2():
                         
                         # Only process if this day is in our weekdays list
                         if day in day_to_col:
-                            col_index = day_to_col[day]
-                            cell = ws.cell(row=row, column=col_index + 1)
+                            col_num = day_to_col[day]
+                            cell = ws.cell(row=row, column=col_num)
                             
                             status = att.get('status', '')
                             if status == 'Absent':
@@ -265,13 +277,13 @@ def generate_sf2():
         print(f"Total female students enrolled: {total_female_students}")
         
         for idx in range(num_weekdays):
-            col_index = 3 + idx
+            col_num = 4 + idx  # Column D=4, E=5, etc.
             
             # Count absent and tardy for this day among females
             absent_tardy_count = 0
             for student_idx in range(total_female_students):
                 student_row = female_start_row + student_idx
-                cell = ws.cell(row=student_row, column=col_index + 1)
+                cell = ws.cell(row=student_row, column=col_num)
                 
                 # Check if cell has 'x' (absent) or has fill (tardy)
                 if cell.value == 'x' or (cell.fill and cell.fill.start_color and cell.fill.start_color.rgb and cell.fill.start_color.rgb != '00000000'):
@@ -279,21 +291,21 @@ def generate_sf2():
             
             # Present = Total - (Absent + Tardy)
             present_count = total_female_students - absent_tardy_count
-            ws.cell(row=61, column=col_index + 1).value = present_count
+            ws.cell(row=61, column=col_num).value = present_count
         
         print(f"✅ Daily female present counts written to row 61")
         
         # Calculate daily TOTAL present count (male + female) (row 62)
         for idx in range(num_weekdays):
-            col_index = 3 + idx
+            col_num = 4 + idx  # Column D=4, E=5, etc.
             
             # Get male and female present counts for this day
-            male_present = ws.cell(row=35, column=col_index + 1).value or 0
-            female_present = ws.cell(row=61, column=col_index + 1).value or 0
+            male_present = ws.cell(row=35, column=col_num).value or 0
+            female_present = ws.cell(row=61, column=col_num).value or 0
             
             # Total present
             total_present = male_present + female_present
-            ws.cell(row=62, column=col_index + 1).value = total_present
+            ws.cell(row=62, column=col_num).value = total_present
         
         print(f"✅ Daily total present counts written to row 62")
         
@@ -306,6 +318,20 @@ def generate_sf2():
                 print(f"Warning: Could not re-merge {merged_range}: {e}")
         
         print(f"✅ Cells re-merged")
+        
+        # Restore all images
+        if saved_images:
+            print(f"Restoring {len(saved_images)} images...")
+            # Clear any existing images first
+            ws._images = []
+            
+            # Add back all saved images
+            for img_data in saved_images:
+                img = img_data['image']
+                img.anchor = img_data['anchor']
+                ws._images.append(img)
+            
+            print(f"✅ Images restored")
         
         # Save to memory
         output = io.BytesIO()
