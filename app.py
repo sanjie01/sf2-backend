@@ -100,13 +100,16 @@ def generate_sf2():
             day_of_week = weekday_date.weekday()  # 0=Monday, 4=Friday
             day_name = day_names[day_of_week]
             
-            col_index = 3 + idx  # D=3, E=4, F=5, etc.
+            # Column index: D=4, E=5, F=6, etc. (openpyxl is 1-indexed)
+            col_num = 4 + idx  # Start from column D (4)
             
             # Write day number to row 11
-            ws.cell(row=11, column=col_index + 1).value = day
+            ws.cell(row=11, column=col_num).value = day
             
             # Write day name to row 12
-            ws.cell(row=12, column=col_index + 1).value = day_name
+            ws.cell(row=12, column=col_num).value = day_name
+            
+            print(f"Day {day} ({day_name}) -> Column {col_num} (idx={idx})")
         
         print(f"✅ Written {num_weekdays} weekday numbers to row 11")
         print(f"✅ Written {num_weekdays} weekday names to row 12")
